@@ -339,7 +339,7 @@
 
 <header>
     <div class="brand">
-        <i class="fa-solid fa-fire-extinguisher"></i>
+        <img src="{{ url_for('static', filename='logo_bomberos.png') }}" alt="Logo" style="width:36px; height:36px; object-fit:contain; border-radius:4px; background:white; padding:2px;">
         <div>
             <h1>Red de Hidrantes</h1>
             <span>Bomberos Voluntarios LGSM</span>
@@ -349,8 +349,12 @@
         <div class="badge-stat" title="Operativos"><span class="dot verde"></span> <span id="stat-op">0</span></div>
         <div class="badge-stat" title="Con Observaciones"><span class="dot amarillo"></span> <span id="stat-obs">0</span></div>
         <div class="badge-stat" title="Fuera de Servicio"><span class="dot rojo"></span> <span id="stat-fs">0</span></div>
+        <a href="/logout" class="badge-stat" title="Cerrar sesión" style="color:white; text-decoration:none;">
+            <i class="fa-solid fa-right-from-bracket"></i>
+        </a>
     </div>
 </header>
+
 
 <div class="controls-bar">
     <div class="search-box">
