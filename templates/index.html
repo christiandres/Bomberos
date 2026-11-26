@@ -491,12 +491,74 @@
     let userMarker = null;
     let filtroActual = 'todos';
 
-    async function cargarHidrantes() {
-        const res = await fetch('/api/hidrantes');
-        hidrantesData = await res.json();
-        actualizarContadores();
-        renderizarMarcadores();
+        let sincronizando = false;
+    let hayCambiosPendientes = false;
+
+    async function cargarHidrantes(silencioso = false) {
+        if (sincronizando) return;
+        sincronizando = true;
+        try {
+            const res = await fetch('/api/hidrantes', { cache: 'no-store' });
+            if (!res.ok) return;
+            const nuevosDatos = await res.json();
+
+            // Evita redibujar si el usuario tiene el modal abierto escribiendo
+            const modalAbierto = document.getElementById('hydrantModal').classList.contains('open');
+            if (modalAbierto) {
+                hayCambiosPendientes = true;
+                return;
+            }
+
+            // Evita cerrar el popup si el usuario está leyendo un hidrante en ese momento
+            const popupAbierto = map._popup && map._popup.isOpen();
+            if (silencioso && popupAbierto) {
+                hayCambiosPendientes = true;
+                return;
+            }
+
+            hidrantesData = nuevosDatos;
+            actualizarContadores();
+            renderizarMarcadores();
+            hayCambiosPendientes = false;
+        } catch (err) {
+            console.error('Error al sincronizar hidrantes:', err);
+        } finally {
+            sincronizando = false;
+        }
     }
+
+    // Al cerrar el modal, aplicar cambios pendientes si hubo
+    const _cerrarModalOriginal = cerrarModal;
+    cerrarModal = function() {
+        _cerrarModalOriginal();
+        if (hayCambiosPendientes) {
+            cargarHidrantes(true);
+        }
+    };
+
+    // Al cerrar un popup, aplicar cambios pendientes si hubo
+    map.on('popupclose', function() {
+        if (hayCambiosPendientes) {
+            cargarHidrantes(true);
+        }
+    });
+
+    // Refrescar automáticamente cada 8 segundos
+    setInterval(() => {
+        if (!document.hidden) {
+            cargarHidrantes(true);
+        }
+    }, 5000);
+
+    // Refrescar al volver a la pestaña o app en el celular
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            cargarHidrantes(true);
+        }
+    });
+
+
+
 
     function actualizarContadores() {
         document.getElementById('stat-op').textContent = hidrantesData.filter(h => h.estado === 'operativo').length;
