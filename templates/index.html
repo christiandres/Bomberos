@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mapa de Hidrantes - Bomberos Voluntarios LGSM</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --rojo-bomberos: #b91c1c;
+            --rojo-oscuro: #7f1d1d;
+            --verde: #16a34a;
+            --amarillo: #d97706;
+            --rojo-estado: #dc2626;
+            --gris-oscuro: #1f2937;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body, html { height: 100%; width: 100%; overflow: hidden; background: #111; }
+
+        header {
+            background: linear-gradient(135deg, var(--rojo-oscuro), var(--rojo-bomberos));
+            color: white;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            position: relative;
+            z-index: 1000;
+            height: 58px;
+        }
+
+        .brand { display: flex; align-items: center; gap: 10px; }
+        .brand i { font-size: 1.5rem; color: #fca5a5; }
+        .brand h1 { font-size: 1.05rem; font-weight: 700; line-height: 1.1; }
+        .brand span { font-size: 0.75rem; opacity: 0.9; display: block; font-weight: 400; }
+
+        .stats-bar { display: flex; gap: 8px; font-size: 0.8rem; font-weight: 600; }
+        .badge-stat {
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+        .dot.verde { background: #22c55e; }
+        .dot.amarillo { background: #f59e0b; }
+        .dot.rojo { background: #ef4444; }
+
+        .controls-bar {
+            background: white;
+            padding: 8px 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+            position: relative;
+            z-index: 999;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 180px;
+            position: relative;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 7px 10px 7px 32px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        .search-box i {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+        }
+
+        .filter-btns { display: flex; gap: 5px; overflow-x: auto; }
+        .btn-filter {
+            padding: 6px 10px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .btn-filter.active { background: var(--gris-oscuro); color: white; border-color: var(--gris-oscuro); }
+
+        #map {
+            width: 100%;
+            height: calc(100vh - 105px);
+            z-index: 1;
+        }
+
+        .fab-container {
+            position: fixed;
+            bottom: 22px;
+            right: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .fab {
+            border: none;
+            border-radius: 50px;
+            padding: 12px 18px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.15s;
+        }
+        .fab:active { transform: scale(0.96); }
+        .fab-gps { background: #2563eb; }
+        .fab-add { background: var(--rojo-bomberos); }
+
+        .hydrant-pin {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            border: 2.5px solid white;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.45);
+            color: white;
+            font-size: 14px;
+        }
+        .hydrant-pin i { transform: rotate(45deg); }
+        .pin-operativo { background: var(--verde); }
+        .pin-observacion { background: var(--amarillo); }
+        .pin-fuera_servicio { background: var(--rojo-estado); }
+
+        .leaflet-popup-content { width: 270px !important; margin: 12px; }
+        .popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+        }
+        .popup-code { font-weight: 700; font-size: 0.95rem; color: #111827; }
+        .estado-pill {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: white;
+            text-transform: uppercase;
+        }
+        .bg-operativo { background: var(--verde); }
+        .bg-observacion { background: var(--amarillo); }
+        .bg-fuera_servicio { background: var(--rojo-estado); }
+
+        .popup-info p { font-size: 0.83rem; margin-bottom: 4px; color: #374151; }
+        .popup-info strong { color: #111827; }
+        .popup-obs {
+            background: #fef3c7;
+            border-left: 3px solid #d97706;
+            padding: 6px;
+            font-size: 0.8rem;
+            margin: 6px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .popup-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-top: 10px;
+        }
+        .btn-popup {
+            padding: 6px;
+            border: none;
+            border-radius: 5px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .btn-maps { background: #2563eb; color: #fff !important; grid-column: span 2; }
+        .btn-edit { background: #e5e7eb; color: #1f2937; }
+        .btn-del { background: #fee2e2; color: #b91c1c; }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-card {
+            background: white;
+            width: 100%;
+            max-width: 460px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            max-height: 92vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            background: var(--gris-oscuro);
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-body { padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-size: 0.8rem; font-weight: 600; color: #374151; }
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        .modal-footer {
+            padding: 12px 16px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        .btn { padding: 8px 16px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; }
+        .btn-secondary { background: #e5e7eb; color: #374151; }
+        .btn-primary { background: var(--rojo-bomberos); color: white; }
+
+        .hint-banner {
+            position: fixed;
+            top: 115px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(17, 24, 39, 0.88);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            z-index: 900;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="brand">
+        <i class="fa-solid fa-fire-extinguisher"></i>
+        <div>
+            <h1>Red de Hidrantes</h1>
+            <span>Bomberos Voluntarios LGSM</span>
+        </div>
+    </div>
+    <div class="stats-bar">
+        <div class="badge-stat" title="Operativos"><span class="dot verde"></span> <span id="stat-op">0</span></div>
+        <div class="badge-stat" title="Con Observaciones"><span class="dot amarillo"></span> <span id="stat-obs">0</span></div>
+        <div class="badge-stat" title="Fuera de Servicio"><span class="dot rojo"></span> <span id="stat-fs">0</span></div>
+    </div>
+</header>
+
+<div class="controls-bar">
+    <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="searchInput" placeholder="Buscar calle, barrio o código...">
+    </div>
+    <div class="filter-btns">
+        <button class="btn-filter active" data-filter="todos">Todos</button>
+        <button class="btn-filter" data-filter="operativo">Operativos</button>
+        <button class="btn-filter" data-filter="observacion">Con Obs.</button>
+        <button class="btn-filter" data-filter="fuera_servicio">Fuera Serv.</button>
+    </div>
+</div>
+
+<div class="hint-banner">Tocá el mapa para cargar un hidrante o usá el botón GPS</div>
+
+<div id="map"></div>
+
+<div class="fab-container">
+    <button class="fab fab-gps" onclick="centrarEnMiUbicacion()" title="Ver mi posición">
+        <i class="fa-solid fa-location-crosshairs"></i> Mi GPS
+    </button>
+    <button class="fab fab-add" onclick="agregarEnMiUbicacion()">
+        <i class="fa-solid fa-plus"></i> Cargar Acá
+    </button>
+</div>
+
+<!-- Modal Alta / Edición -->
+<div class="modal-overlay" id="hydrantModal">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 id="modalTitle" style="font-size: 1rem;">Nuevo Hidrante</h3>
+            <button onclick="cerrarModal()" style="background:none; border:none; color:white; font-size:1.2rem; cursor:pointer;">&times;</button>
+        </div>
+        <form id="hydrantForm" onsubmit="guardarHidrante(event)">
+            <div class="modal-body">
+                <input type="hidden" id="hidranteId">
+                <input type="hidden" id="lat">
+                <input type="hidden" id="lng">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Código / N° Interno</label>
+                        <input type="text" id="codigo" placeholder="Ej: H-014" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Estado Operativo *</label>
+                        <select id="estado" required>
+                            <option value="operativo">🟢 Operativo</option>
+                            <option value="observacion">🟡 Operativo c/ Observación</option>
+                            <option value="fuera_servicio">🔴 Fuera de Servicio</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Ubicación / Intersección *</label>
+                    <input type="text" id="ubicacion" required placeholder="Ej: Av. Perón esq. Salta">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Barrio / Zona</label>
+                        <input type="text" id="barrio" placeholder="Ej: Centro, Ledesma...">
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Boca</label>
+                        <select id="tipo">
+                            <option value="Hidrante">Hidrante</option>     
+                            <option value="Boca de Incendio">Boca de Incendio</option>
+                          
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Relevado por</label>
+                    <input type="text" id="revisado_por" placeholder="Apellido / Guardia">
+                </div>
+
+                <div class="form-group">
+                    <label>Observaciones técnicas (presión, llave, obstáculos)</label>
+                    <textarea id="observaciones" rows="2" placeholder="Ej: Buena presión. Llevar llave de cuadro."></textarea>
+                </div>
+
+                <div style="font-size: 0.75rem; color: #6b7280;" id="coordsDisplay"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar Hidrante</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    const LGSM_COORDS = [-23.8065, -64.7876];
+    
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+    });
+
+    const sateliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: '© Esri'
+    });
+
+    const map = L.map('map', {
+        center: LGSM_COORDS,
+        zoom: 15,
+        layers: [osmLayer]
+    });
+
+    L.control.layers({
+        "Mapa Callejero": osmLayer,
+        "Vista Satelital": sateliteLayer
+    }, null, { position: 'topleft' }).addTo(map);
+
+    let hidrantesData = [];
+    let markersLayer = L.layerGroup().addTo(map);
+    let userMarker = null;
+    let filtroActual = 'todos';
+
+    async function cargarHidrantes() {
+        const res = await fetch('/api/hidrantes');
+        hidrantesData = await res.json();
+        actualizarContadores();
+        renderizarMarcadores();
+    }
+
+    function actualizarContadores() {
+        document.getElementById('stat-op').textContent = hidrantesData.filter(h => h.estado === 'operativo').length;
+        document.getElementById('stat-obs').textContent = hidrantesData.filter(h => h.estado === 'observacion').length;
+        document.getElementById('stat-fs').textContent = hidrantesData.filter(h => h.estado === 'fuera_servicio').length;
+    }
+
+    function crearIcono(hidrante) {
+        const iconClass = hidrante.tipo === 'Subterráneo' ? 'fa-square-arrow-down' : 'fa-faucet-drip';
+        return L.divIcon({
+            className: 'custom-div-icon',
+            html: `<div class="hydrant-pin pin-${hidrante.estado}"><i class="fa-solid ${iconClass}"></i></div>`,
+            iconSize: [34, 34],
+            iconAnchor: [17, 34],
+            popupAnchor: [0, -32]
+        });
+    }
+
+    function textoEstado(estado) {
+        if (estado === 'operativo') return 'Operativo';
+        if (estado === 'observacion') return 'Con Observación';
+        return 'Fuera de Servicio';
+    }
+
+    function renderizarMarcadores() {
+        markersLayer.clearLayers();
+        const textoBusqueda = document.getElementById('searchInput').value.toLowerCase();
+
+        const filtrados = hidrantesData.filter(h => {
+            const coincideEstado = (filtroActual === 'todos') || (h.estado === filtroActual);
+            const coincideTexto = 
+                (h.ubicacion && h.ubicacion.toLowerCase().includes(textoBusqueda)) ||
+                (h.barrio && h.barrio.toLowerCase().includes(textoBusqueda)) ||
+                (h.codigo && h.codigo.toLowerCase().includes(textoBusqueda));
+            return coincideEstado && coincideTexto;
+        });
+
+        filtrados.forEach(h => {
+            const marker = L.marker([h.lat, h.lng], { icon: crearIcono(h) });
+            
+            const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}`;
+            const obsHtml = h.observaciones ? `<div class="popup-obs"><strong>Obs:</strong> ${h.observaciones}</div>` : '';
+
+            const popupHtml = `
+                <div class="popup-header">
+                    <span class="popup-code">${h.codigo || 'S/N'} - ${h.tipo}</span>
+                    <span class="estado-pill bg-${h.estado}">${textoEstado(h.estado)}</span>
+                </div>
+                <div class="popup-info">
+                    <p><strong>Ubicación:</strong> ${h.ubicacion}</p>
+                    <p><strong>Barrio:</strong> ${h.barrio || '-'}</p>
+                    ${obsHtml}
+                    <p style="font-size:0.72rem; color:#6b7280; margin-top:4px;">
+                        Rev: ${h.ultima_revision || '-'} (${h.revisado_por || 'S/D'})
+                    </p>
+                </div>
+                <div class="popup-actions">
+                    <a href="${gmapsUrl}" target="_blank" class="btn-popup btn-maps">
+                        <i class="fa-solid fa-diamond-turn-right"></i> Cómo llegar (GPS)
+                    </a>
+                    <button class="btn-popup btn-edit" onclick='abrirEditar(${JSON.stringify(h).replace(/'/g, "&#39;")})'>
+                        <i class="fa-solid fa-pen"></i> Editar
+                    </button>
+                    <button class="btn-popup btn-del" onclick="eliminarHidrante(${h.id})">
+                        <i class="fa-solid fa-trash"></i> Borrar
+                    </button>
+                </div>
+            `;
+
+            marker.bindPopup(popupHtml);
+            markersLayer.addLayer(marker);
+        });
+    }
+
+    map.on('click', function(e) {
+        abrirNuevo(e.latlng.lat, e.latlng.lng);
+    });
+        async function abrirNuevo(lat, lng) {
+        document.getElementById('hydrantForm').reset();
+        document.getElementById('hidranteId').value = '';
+        document.getElementById('lat').value = lat.toFixed(6);
+        document.getElementById('lng').value = lng.toFixed(6);
+        document.getElementById('modalTitle').textContent = 'Registrar Nuevo Hidrante';
+        document.getElementById('coordsDisplay').textContent = `Coordenadas: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
+        try {
+            const res = await fetch('/api/proximo-codigo');
+            const data = await res.json();
+            document.getElementById('codigo').value = data.codigo || '';
+        } catch (err) {
+            document.getElementById('codigo').value = '';
+        }
+
+        document.getElementById('hydrantModal').classList.add('open');
+    }
+
+
+    function abrirEditar(h) {
+        document.getElementById('hidranteId').value = h.id;
+        document.getElementById('codigo').value = h.codigo || '';
+        document.getElementById('estado').value = h.estado;
+        document.getElementById('ubicacion').value = h.ubicacion;
+        document.getElementById('barrio').value = h.barrio || '';
+        document.getElementById('tipo').value = h.tipo;
+        document.getElementById('revisado_por').value = h.revisado_por || '';
+        document.getElementById('observaciones').value = h.observaciones || '';
+        document.getElementById('lat').value = h.lat;
+        document.getElementById('lng').value = h.lng;
+        document.getElementById('modalTitle').textContent = `Editar Hidrante ${h.codigo || ''}`;
+        document.getElementById('coordsDisplay').textContent = `Coordenadas: ${h.lat}, ${h.lng}`;
+        document.getElementById('hydrantModal').classList.add('open');
+    }
+
+    function cerrarModal() {
+        document.getElementById('hydrantModal').classList.remove('open');
+    }
+
+    async function guardarHidrante(e) {
+        e.preventDefault();
+        const id = document.getElementById('hidranteId').value;
+        const payload = {
+            codigo: document.getElementById('codigo').value,
+            estado: document.getElementById('estado').value,
+            ubicacion: document.getElementById('ubicacion').value,
+            barrio: document.getElementById('barrio').value,
+            tipo: document.getElementById('tipo').value,
+            revisado_por: document.getElementById('revisado_por').value,
+            observaciones: document.getElementById('observaciones').value,
+            lat: document.getElementById('lat').value,
+            lng: document.getElementById('lng').value
+        };
+
+        const url = id ? `/api/hidrantes/${id}` : '/api/hidrantes';
+        const method = id ? 'PUT' : 'POST';
+
+        await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        cerrarModal();
+        cargarHidrantes();
+    }
+
+    async function eliminarHidrante(id) {
+        if (!confirm('¿Seguro que querés eliminar este hidrante del mapa?')) return;
+        await fetch(`/api/hidrantes/${id}`, { method: 'DELETE' });
+        cargarHidrantes();
+    }
+
+    function centrarEnMiUbicacion() {
+        if (!navigator.geolocation) {
+            alert("Tu dispositivo no soporta geolocalización.");
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(pos => {
+            const { latitude, longitude } = pos.coords;
+            map.setView([latitude, longitude], 17);
+            
+            if (userMarker) map.removeLayer(userMarker);
+            userMarker = L.circleMarker([latitude, longitude], {
+                radius: 9,
+                fillColor: "#2563eb",
+                color: "#ffffff",
+                weight: 3,
+                opacity: 1,
+                fillOpacity: 0.9
+            }).addTo(map).bindPopup("Estás acá").openPopup();
+        }, () => {
+            alert("No se pudo obtener la ubicación GPS. Verificá los permisos del navegador.");
+        }, { enableHighAccuracy: true });
+    }
+
+    function agregarEnMiUbicacion() {
+        if (!navigator.geolocation) {
+            alert("Tu dispositivo no soporta geolocalización.");
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(pos => {
+            abrirNuevo(pos.coords.latitude, pos.coords.longitude);
+        }, () => {
+            alert("No se pudo obtener tu posición GPS. Podés tocar directamente en el mapa donde está el hidrante.");
+        }, { enableHighAccuracy: true });
+    }
+
+    document.querySelectorAll('.btn-filter').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            filtroActual = btn.dataset.filter;
+            renderizarMarcadores();
+        });
+    });
+
+    document.getElementById('searchInput').addEventListener('input', renderizarMarcadores);
+
+    cargarHidrantes();
+</script>
+</body>
+</html>
