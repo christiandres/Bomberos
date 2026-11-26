@@ -4,10 +4,61 @@ import json
 import os
 import sqlite3
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, Response
-
+from functools import wraps
+from flask import Flask, render_template, request, jsonify, Response, session, redirect, url_for
 
 app = Flask(__name__)
+
+app.secret_key = os.environ.get("SECRET_KEY", "bomberos-lgsm-hidrantes-clave-segura-2026")
+CLAVE_ACCESO = os.environ.get("APP_PASSWORD", "420600")
+
+
+def requiere_login_vista(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("autenticado"):
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def requiere_login_api(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("autenticado"):
+            return jsonify({"error": "No autorizado"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if session.get("autenticado"):
+        return redirect(url_for("index"))
+
+    error = None
+    if request.method == "POST":
+        clave_ingresada = (request.form.get("clave") or "").strip()
+        if clave_ingresada == CLAVE_ACCESO:
+            session.permanent = True
+            session["autenticado"] = True
+            return redirect(url_for("index"))
+        error = "Contraseña incorrecta. Verificá e intentá de nuevo."
+
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+@app.route("/")
+@requiere_login_vista
+def index():
+    return render_template("index.html")
+
+
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 USE_POSTGRES = DATABASE_URL.startswith("postgres")
