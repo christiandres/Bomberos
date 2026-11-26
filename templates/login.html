@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso - Bomberos Voluntarios LGSM</title>
+    <style>
+        :root {
+            --rojo-bomberos: #b91c1c;
+            --rojo-oscuro: #7f1d1d;
+            --gris-oscuro: #111827;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body {
+            min-height: 100vh;
+            background: radial-gradient(circle at top, #2a1010, var(--gris-oscuro) 70%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #1f2937;
+        }
+        .login-card {
+            background: #ffffff;
+            width: 100%;
+            max-width: 390px;
+            border-radius: 14px;
+            padding: 28px 24px;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+            text-align: center;
+            border-top: 6px solid var(--rojo-bomberos);
+        }
+        .logo-box {
+            width: 128px;
+            height: 128px;
+            margin: 0 auto 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .logo-box img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.18));
+        }
+        h1 {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #111827;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        .subtitulo {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-top: 3px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .form-group {
+            text-align: left;
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+        input[type="password"] {
+            width: 100%;
+            padding: 12px 14px;
+            font-size: 1.25rem;
+            letter-spacing: 6px;
+            text-align: center;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="password"]:focus {
+            border-color: var(--rojo-bomberos);
+        }
+        .btn-entrar {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--rojo-bomberos), var(--rojo-oscuro));
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 12px rgba(185, 28, 28, 0.35);
+        }
+        .btn-entrar:active { transform: scale(0.98); }
+        .error-msg {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #dc2626;
+            padding: 9px 12px;
+            border-radius: 6px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            margin-bottom: 14px;
+            text-align: left;
+        }
+        .footer-note {
+            margin-top: 18px;
+            font-size: 0.74rem;
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo-box">
+            <img src="{{ url_for('static', filename='logo_bomberos.png') }}" alt="Logo Bomberos Voluntarios LGSM Jujuy">
+        </div>
+        <h1>Bomberos Voluntarios</h1>
+        <div class="subtitulo">LGSM — Jujuy • Red de Hidrantes</div>
+
+        {% if error %}
+        <div class="error-msg">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="/login">
+            <div class="form-group">
+                <label for="clave">Contraseña de acceso</label>
+                <input
+                    type="password"
+                    id="clave"
+                    name="clave"
+                    inputmode="numeric"
+                    autocomplete="current-password"
+                    placeholder="••••••"
+                    required
+                    autofocus
+                >
+            </div>
+            <button type="submit" class="btn-entrar">Ingresar al Mapa</button>
+        </form>
+
+        <div class="footer-note">Uso exclusivo del cuerpo activo y guardia</div>
+    </div>
+</body>
+</html>
