@@ -30,6 +30,7 @@ def requiere_login_api(f):
         return f(*args, **kwargs)
     return decorated
 
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if session.get("autenticado"):
@@ -57,7 +58,6 @@ def logout():
 @requiere_login_vista
 def index():
     return render_template("index.html")
-
 
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
@@ -177,12 +177,8 @@ def init_db():
 init_db()
 
 
-@app.route("/")
-def index():
-    return render_template("index.html")
-
-
 @app.route("/api/hidrantes", methods=["GET"])
+@requiere_login_api
 def listar_hidrantes():
     db = get_db()
     rows = db.execute("SELECT * FROM hidrantes ORDER BY id DESC").fetchall()
@@ -191,6 +187,7 @@ def listar_hidrantes():
 
 
 @app.route("/api/proximo-codigo", methods=["GET"])
+@requiere_login_api
 def proximo_codigo():
     db = get_db()
     rows = db.execute("SELECT codigo FROM hidrantes WHERE codigo IS NOT NULL AND codigo != ''").fetchall()
@@ -211,6 +208,7 @@ def proximo_codigo():
 
 
 @app.route("/api/hidrantes", methods=["POST"])
+@requiere_login_api
 def crear_hidrante():
     data = request.json or {}
     fecha_hoy = datetime.now().strftime("%Y-%m-%d")
@@ -241,6 +239,7 @@ def crear_hidrante():
 
 
 @app.route("/api/hidrantes/<int:id>", methods=["PUT"])
+@requiere_login_api
 def actualizar_hidrante(id):
     data = request.json or {}
     fecha_hoy = datetime.now().strftime("%Y-%m-%d")
@@ -274,6 +273,7 @@ def actualizar_hidrante(id):
 
 
 @app.route("/api/hidrantes/<int:id>/estado", methods=["PATCH"])
+@requiere_login_api
 def cambio_rapido_estado(id):
     data = request.json or {}
     fecha_hoy = datetime.now().strftime("%Y-%m-%d")
@@ -288,6 +288,7 @@ def cambio_rapido_estado(id):
 
 
 @app.route("/api/hidrantes/<int:id>", methods=["DELETE"])
+@requiere_login_api
 def eliminar_hidrante(id):
     db = get_db()
     db.execute("DELETE FROM hidrantes WHERE id = ?", (id,))
@@ -295,7 +296,9 @@ def eliminar_hidrante(id):
     db.close()
     return jsonify({"status": "ok"})
 
+
 @app.route("/api/exportar", methods=["GET"])
+@requiere_login_api
 def exportar_hidrantes():
     formato = request.args.get("formato", "json").lower()
     fecha_hoy = datetime.now().strftime("%Y-%m-%d")
@@ -331,6 +334,7 @@ def exportar_hidrantes():
             "Content-Disposition": f"attachment; filename=hidrantes_lgsm_{fecha_hoy}.json"
         }
     )
+
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
