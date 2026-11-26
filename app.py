@@ -1,7 +1,11 @@
+import csv
+import io
+import json
 import os
 import sqlite3
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
+
 
 app = Flask(__name__)
 
@@ -240,6 +244,42 @@ def eliminar_hidrante(id):
     db.close()
     return jsonify({"status": "ok"})
 
+@app.route("/api/exportar", methods=["GET"])
+def exportar_hidrantes():
+    formato = request.args.get("formato", "json").lower()
+    fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+
+    db = get_db()
+    rows = db.execute("SELECT * FROM hidrantes ORDER BY id ASC").fetchall()
+    db.close()
+
+    datos = [dict(row) for row in rows]
+
+    if formato == "csv":
+        output = io.StringIO()
+        campos = [
+            "id", "codigo", "ubicacion", "barrio", "lat", "lng",
+            "tipo", "estado", "observaciones", "ultima_revision", "revisado_por"
+        ]
+        writer = csv.DictWriter(output, fieldnames=campos, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(datos)
+
+        return Response(
+            output.getvalue(),
+            mimetype="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": f"attachment; filename=hidrantes_lgsm_{fecha_hoy}.csv"
+            }
+        )
+
+    return Response(
+        json.dumps(datos, indent=2, ensure_ascii=False),
+        mimetype="application/json; charset=utf-8",
+        headers={
+            "Content-Disposition": f"attachment; filename=hidrantes_lgsm_{fecha_hoy}.json"
+        }
+    )
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
