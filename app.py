@@ -1,3 +1,4 @@
+import time
 import csv
 import io
 import json
@@ -16,7 +17,7 @@ CLAVE_ACCESO = os.environ.get("APP_PASSWORD", "420600")
 def requiere_login_vista(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if not session.get("autenticado"):
+        if sesion_expirada():
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return decorated
@@ -25,11 +26,25 @@ def requiere_login_vista(f):
 def requiere_login_api(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if not session.get("autenticado"):
-            return jsonify({"error": "No autorizado"}), 401
+        if sesion_expirada():
+            return jsonify({"error": "Sesión expirada por inactividad"}), 401
         return f(*args, **kwargs)
     return decorated
 
+TIEMPO_INACTIVIDAD_SEG = int(os.environ.get("SESSION_TIMEOUT_SEG", 1800))  # 30 minutos por defecto
+
+
+def sesion_expirada():
+    if not session.get("autenticado"):
+        return True
+    ultima = session.get("ultima_actividad")
+    ahora = time.time()
+    if ultima is not None and (ahora - ultima) > TIEMPO_INACTIVIDAD_SEG:
+        session.clear()
+        return True
+    session.permanent = True
+    session["ultima_actividad"] = ahora
+    return False
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -40,6 +55,7 @@ def login():
     if request.method == "POST":
         clave_ingresada = (request.form.get("clave") or "").strip()
         if clave_ingresada == CLAVE_ACCESO:
+            session["ultima_actividad"] = time.time()
             session.permanent = True
             session["autenticado"] = True
             return redirect(url_for("index"))
@@ -334,6 +350,8 @@ def exportar_hidrantes():
             "Content-Disposition": f"attachment; filename=hidrantes_lgsm_{fecha_hoy}.json"
         }
     )
+
+
 
 
 if __name__ == "__main__":
