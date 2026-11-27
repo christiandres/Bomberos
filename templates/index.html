@@ -488,6 +488,15 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
+    async function fetchSeguro(url, options = {}) {
+        const res = await fetch(url, options);
+        if (res.status === 401) {
+            window.location.href = '/login';
+            throw new Error('Sesión expirada');
+        }
+        return res;
+    }
+
     const LGSM_COORDS = [-23.8065, -64.7876];
     
     const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -523,7 +532,7 @@
         if (sincronizando) return;
         sincronizando = true;
         try {
-            const res = await fetch('/api/hidrantes', { cache: 'no-store' });
+            const res = await fetchSeguro('/api/hidrantes', { cache: 'no-store' });
             if (!res.ok) return;
             const nuevosDatos = await res.json();
 
@@ -670,7 +679,7 @@
         document.getElementById('coordsDisplay').textContent = `Coordenadas: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
 
         try {
-            const res = await fetch('/api/proximo-codigo');
+            const res = await fetchSeguro('/api/proximo-codigo');
             const data = await res.json();
             document.getElementById('codigo').value = data.codigo || '';
         } catch (err) {
@@ -727,7 +736,7 @@
         const url = id ? `/api/hidrantes/${id}` : '/api/hidrantes';
         const method = id ? 'PUT' : 'POST';
 
-        await fetch(url, {
+        await fetchSeguro(url, {
             method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -739,7 +748,7 @@
 
     async function eliminarHidrante(id) {
         if (!confirm('¿Seguro que querés eliminar este hidrante del mapa?')) return;
-        await fetch(`/api/hidrantes/${id}`, { method: 'DELETE' });
+        await fetchSeguro(`/api/hidrantes/${id}`, { method: 'DELETE' });
         cargarHidrantes();
     }
 
