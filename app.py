@@ -31,7 +31,7 @@ def requiere_login_api(f):
         return f(*args, **kwargs)
     return decorated
 
-TIEMPO_INACTIVIDAD_SEG = int(os.environ.get("SESSION_TIMEOUT_SEG", 120))  # 30 minutos por defecto
+TIEMPO_INACTIVIDAD_SEG = int(os.environ.get("SESSION_TIMEOUT_SEG", 3600))  # 60 minutos por defecto
 
 
 def sesion_expirada():
